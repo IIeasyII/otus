@@ -1,100 +1,104 @@
-﻿using System.Text;
+﻿using System.Collections;
+using System.Diagnostics;
 
 internal class Program
 {
-    private const char Symbol = '+';
-
     private static void Main(string[] args)
     {
-        System.Console.WriteLine("Введите размерность таблицы:");
-        int n;
-        while (!int.TryParse(Console.ReadLine(), out n) || (n < 1 || n > 6))
+        var list = new List<int>();
+        var arrayList = new ArrayList();
+        var linkedList = new LinkedList<int>();
+        
+        #region Insert performance
+        System.Console.WriteLine($"Время на заполнение коллекций");
+        Stopwatch stopwatch = new Stopwatch();
+
+        stopwatch.Start();
+        for(var i = 0; i < 1000000; i++)
+            list.Add(i);
+        stopwatch.Stop();
+
+        System.Console.WriteLine($"'List<int>' - {stopwatch.ElapsedMilliseconds} milliseconds");
+        
+        stopwatch.Reset();
+        stopwatch.Start();
+        for(var i = 0; i < 1000000; i++)
+            arrayList.Add(i);
+        stopwatch.Stop();
+
+        System.Console.WriteLine($"'ArrayList' - {stopwatch.ElapsedMilliseconds} milliseconds");
+
+        stopwatch.Reset();
+        stopwatch.Start();
+        for(var i = 0; i < 1000000; i++)
+            linkedList.AddLast(i);
+        stopwatch.Stop();
+
+        System.Console.WriteLine($"'LinkedList<int>' - {stopwatch.ElapsedMilliseconds} milliseconds");
+        #endregion
+
+        #region Search element
+        System.Console.WriteLine($"Поиск элемента коллекций");
+        stopwatch.Reset();
+        stopwatch.Start();
+        var element = list[496753];
+        stopwatch.Stop();
+        System.Console.WriteLine($@"'List<int>' если брать по индексу, то операция выполняется за одну команду, счет идет на наносекунды и скорее всего зависимости от мощности машины {stopwatch.ElapsedMilliseconds} milliseconds");
+
+        stopwatch.Reset();
+        stopwatch.Start();
+        element = list.Find(x => x == 496753);
+        stopwatch.Stop();
+
+        System.Console.WriteLine($@"'List<int>' method 'Find': {stopwatch.ElapsedMilliseconds} milliseconds");
+
+        stopwatch.Reset();
+        stopwatch.Start();
+        element = list.BinarySearch(496753);
+        stopwatch.Stop();
+
+        System.Console.WriteLine($@"'List<int>' method 'BinarySearch': {stopwatch.ElapsedMilliseconds} milliseconds");
+
+        stopwatch.Reset();
+        stopwatch.Start();
+        element = arrayList.BinarySearch(496753);
+        stopwatch.Stop();
+
+        System.Console.WriteLine($@"'ArrayList' method 'BinarySearch': {stopwatch.ElapsedMilliseconds} milliseconds");
+        #endregion
+
+        #region Element % 777
+        System.Console.WriteLine($"Вывод времени выполнения поиска всех элементов деления на 777 без остатка");
+        stopwatch.Reset();
+        stopwatch.Start();
+        foreach(var item in list)
         {
-            Console.Clear();
-            System.Console.WriteLine("Введите размерность таблицы:");
+            if(item % 777 != 0) continue;
+            System.Console.WriteLine(item);
         }
-
-        System.Console.WriteLine("Введите произвольный текст:");
-
-        string? text;
-        int limit = 40;
-        int width;
-        while (string.IsNullOrWhiteSpace(text = Console.ReadLine()) || (width = text.Length + n * 2) > limit)
+        stopwatch.Stop();
+        System.Console.WriteLine($"'List<int>' %777: {stopwatch.ElapsedMilliseconds} milliseconds");
+        
+        stopwatch.Reset();
+        stopwatch.Start();
+        foreach(int item in arrayList)
         {
-            System.Console.WriteLine("Введите произвольный текст:");
+            if(item % 777 != 0) continue;
+            System.Console.WriteLine(item);
         }
+        stopwatch.Stop();
+        System.Console.WriteLine($"'ArrayList' %777: {stopwatch.ElapsedMilliseconds} milliseconds");
 
-        System.Console.Clear();
-
-        var horizontal = new string(Symbol, width);
-
-        for (int i = 0; i < 7; i++)
+        stopwatch.Reset();
+        stopwatch.Start();
+        foreach(int item in linkedList)
         {
-            switch (i)
-            {
-                case 1:
-                    {
-                        PrintTop(text, width, n);
-                        break;
-                    }
-                case 3:
-                    {
-                        PrintCenter(width);
-                        break;
-                    }
-                case 5:
-                    {
-                        PrintBottom(width);
-                        break;
-                    }
-                default:
-                    System.Console.WriteLine(horizontal);
-                    break;
-            }
+            if(item % 777 != 0) continue;
+            System.Console.WriteLine(item);
         }
-
+        stopwatch.Stop();
+        System.Console.WriteLine($"'LinkedList<int>' %777: {stopwatch.ElapsedMilliseconds} milliseconds");
+        #endregion
         Console.ReadKey();
-    }
-
-    static void PrintTop(string text, int width, int n)
-    {
-        var indent = n - 1;
-        var empty = new string(' ', indent);
-        var row = $"{Symbol}{new string(' ', width - 2)}{Symbol}\n";
-        var half = $"{string.Join(string.Empty, Enumerable.Repeat(row, indent))}";
-        var table = $"{half}{Symbol}{empty}{text}{empty}{Symbol}\n{half}";
-
-        System.Console.Write(table);
-    }
-
-    static void PrintCenter(int width)
-    {
-        for (int i = 0; i < width; i++)
-        {
-            System.Console.Write(Symbol);
-            for (int j = 0; j < width - 2; j++)
-            {
-                Console.Write((i + j) % 2 == 0 ? ' ' : Symbol);
-            }
-            System.Console.Write(Symbol);
-            Console.WriteLine();
-        }
-    }
-
-    static void PrintBottom(int width)
-    {
-        if (width < 5)
-        {
-            for (int i = 0; i < width - 2; i++)
-                System.Console.WriteLine($"{new string(Symbol, width)}");
-            return;
-        }
-        var edges = 0;
-        var center = width - 4;
-        for (; center > 0; edges++, center -= 2)
-            System.Console.WriteLine($"{Symbol}{new string(' ', edges)}{Symbol}{new string(' ', center)}{Symbol}{new string(' ', edges)}{Symbol}");
-        System.Console.WriteLine($"{Symbol}{new string(' ', edges)}{(width % 2 == 0 ? $"{Symbol}{Symbol}" : Symbol)}{new string(' ', edges)}{Symbol}");
-        for (edges--, center += 2; center < width - 2; edges--, center += 2)
-            System.Console.WriteLine($"{Symbol}{new string(' ', edges)}{Symbol}{new string(' ', center)}{Symbol}{new string(' ', edges)}{Symbol}");
     }
 }
