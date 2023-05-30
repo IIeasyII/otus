@@ -1,152 +1,98 @@
-﻿using System.Collections;
-using System.Diagnostics;
-
-internal class Program
+﻿internal class Program
 {
     private static void Main(string[] args)
     {
-        System.Console.WriteLine("a*x^2+b*x+c=0");
-        Dictionary<char, int> arguments;
-        while (!TryReadParameters(out arguments)) ;
+        var s = new Stack("a", "b", "c");
+        // size = 3, Top = 'c'
+        Console.WriteLine($"size = {s.Size}, Top = '{s.Top}'");
+        var deleted = s.Pop();
+        // Извлек верхний элемент 'c' Size = 2
+        Console.WriteLine($"Извлек верхний элемент '{deleted}' Size = {s.Size}");
+        s.Add("d");
+        // size = 3, Top = 'd'
+        Console.WriteLine($"size = {s.Size}, Top = '{s.Top}'");
+        s.Pop();
+        s.Pop();
+        s.Pop();
+        // size = 0, Top = null
+        Console.WriteLine($"size = {s.Size}, Top = {(s.Top == null ? "null" : s.Top)}");
+        s.Pop();
 
-        var quadraticEquation = new QuadraticEquation(arguments);
 
-        try
-        {
-            var result = quadraticEquation.Calculate();
-            System.Console.WriteLine(result);
-        }
-        catch (NoEquationRootsException ex)
-        {
-            FormatData(ex.Message, Severity.Warning, null!);
-        }
+        var stack1 = new Stack("a", "b", "c");
+        stack1.Merge(new Stack("1", "2", "3"));
+        // в стеке s теперь элементы - "a", "b", "c", "3", "2", "1" <- верхний
 
         Console.ReadKey();
     }
+}
 
-    private static bool TryReadParameters(out Dictionary<char, int> arguments)
+internal class Stack
+{
+    private StackItem? _item;
+    public int Size { get; set; } = 0;
+
+    public string? Top
     {
-        arguments = new();
-        var parameters = new Dictionary<char, string>()
+        get
         {
-            {'a', string.Empty},
-            {'b', string.Empty},
-            {'c', string.Empty},
-        };
-
-        //read parameter from console
-        foreach (var item in parameters.Keys)
-        {
-            var message = $"Введите значение {item}:";
-            System.Console.WriteLine(message);
-            var input = Console.ReadLine();
-            parameters[item] = input;
+            if (Size == 0)
+                return null;
+            return _item?.Current;
         }
-
-        try
-        {
-            foreach (var item in parameters)
-            {
-                var parameter = item.Key;
-                var value = item.Value;
-
-                if (!int.TryParse(value, out var number))
-                    continue;
-
-                parameters.Remove(parameter);
-                arguments.Add(parameter, number);
-            }
-            if (parameters.Keys.Count > 0)
-                throw new FormatException("Can't parse parameters");
-        }
-        catch (FormatException ex)
-        {
-            FormatData(ex.Message, Severity.Error, parameters);
-            return false;
-        }
-
-        return true;
     }
 
-    private static void FormatData(string message, Severity severity, IDictionary data)
+    public Stack(params string[] items)
     {
-        switch (severity)
+        Size = items.Length;
+        if (Size == 0) return;
+
+        var previous = new StackItem(items[0]) { Previous = null };
+        for (int i = 1; i < Size; i++)
         {
-            case Severity.Error:
-                {
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.BackgroundColor = ConsoleColor.Red;
-                    foreach (var key in data.Keys)
-                        System.Console.WriteLine($"{key} - {data[key]}");
-                    break;
-                }
-            case Severity.Warning:
-                {
-                    Console.ForegroundColor = ConsoleColor.Black;
-                    Console.BackgroundColor = ConsoleColor.Yellow;
-                    System.Console.WriteLine(message);
-                    break;
-                }
+            _item = new StackItem(items[i]) { Previous = previous };
+            previous = _item;
         }
-        Console.ResetColor();
     }
 
-    enum Severity
+    public void Add(string item)
     {
-        Warning,
-        Error
+        _item = new StackItem(item) { Previous = _item };
+        Size++;
+    }
+
+    public string Pop()
+    {
+        if (_item is null)
+            throw new Exception("Стек пустой");
+
+        var last = _item.Current;
+        _item = _item.Previous;
+        Size--;
+
+        return last;
+    }
+
+    private class StackItem
+    {
+        public string Current { get; set; }
+        public StackItem? Previous { get; set; }
+
+        public StackItem(string value)
+        {
+            Current = value;
+        }
     }
 }
 
-internal class NoEquationRootsException : Exception
+internal static class StackExtensions
 {
-    public NoEquationRootsException(string message) : base(message)
+    public static void Merge(this Stack stack1, Stack stack2)
     {
-
-    }
-}
-
-internal class QuadraticEquation
-{
-    private readonly Dictionary<char, int> _arguments;
-
-    public QuadraticEquation(Dictionary<char, int> arguments)
-    {
-        _arguments = arguments;
-    }
-
-    public string Calculate()
-    {
-        var a = _arguments['a'];
-        var b = _arguments['b'];
-        var c = _arguments['c'];
-
-        var discriminant = GetDiscriminant(a, b, c);
-        var answer = string.Empty;
-
-        switch (discriminant)
+        while (stack2.Size != 0)
         {
-            case var expression when discriminant < 0:
-                {
-                    throw new NoEquationRootsException("Вещественных значений не найдено.");
-                }
-            case var expression when discriminant == 0:
-                {
-                    var x = (-b + Math.Sqrt(discriminant)) / 2 * a;
-                    answer = $"x = {x}";
-                    break;
-                }
-            case var expression when discriminant > 0:
-                {
-                    var x1 = (-b + Math.Sqrt(discriminant)) / 2 * a;
-                    var x2 = (-b - Math.Sqrt(discriminant)) / 2 * a;
-                    answer = $"x1 = {x1}, x2 = {x2}";
-                    break;
-                }
+            var item = stack2.Pop();
+            stack1.Add(item);
         }
-
-        return answer;
     }
-
-    private double GetDiscriminant(int a, int b, int c) => Math.Pow(b, 2) - 4 * a * c;
 }
