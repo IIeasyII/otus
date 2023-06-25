@@ -1,145 +1,54 @@
 ﻿using System.Diagnostics;
 using System.Linq;
+using System.Net;
 
 internal class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
-        while (true)
+        var imageDownloader = new ImageDownloader();
+        imageDownloader.ImageStarted += () =>
         {
-            System.Console.WriteLine("Введите дерево:");
-            BinaryTree binaryTree = new BinaryTree();
-            while (true)
-            {
-                var name = Console.ReadLine();
-                if (string.IsNullOrEmpty(name)) break;
-
-                decimal.TryParse(Console.ReadLine(), out var salary);
-
-                var employee = new EmployeeInfo(name, salary);
-                binaryTree.Add(employee);
-            }
-
-            var sortedEmployeers = binaryTree.SymmetricTraversal();
-            foreach (var item in sortedEmployeers)
-                System.Console.WriteLine($"{item.Name}-{item.Salary}");
-
-            var isFind = true;
-            while (isFind)
-            {            
-                FindInBinaryTree(binaryTree);
-                System.Console.WriteLine("0 - создать новое дерево");
-                System.Console.WriteLine("1 - новый поиск");
-
-                if (Console.ReadLine() == "0")
-                    isFind = false;
-            }
-        }
-    }
-
-    private static void FindInBinaryTree(BinaryTree binaryTree)
-    {
-        System.Console.WriteLine("Поиск по зарплате. Введите размер зарплаты:");
-        var find = Console.ReadLine();
-        if (find is null) return;
-
-        var salary = decimal.Parse(find);
-
-        var employee = binaryTree.Find(x => x.Salary == salary);
-        if (employee is null)
-            System.Console.WriteLine("Такой сотрудник не найден");
-        else
-            System.Console.WriteLine(employee.Name);
-    }
-}
-
-internal class BinaryTree
-{
-    public Node? Root { get; set; }
-
-    public bool Add(EmployeeInfo employee)
-    {
-        Node before = null!;
-        Node? after = Root;
-
-        while (after != null)
+            System.Console.WriteLine("Скачивание файла началось");
+        };
+        imageDownloader.ImageCompleted += () =>
         {
-            before = after;
-            if (employee.Salary < after.EmployeeInfo.Salary)
-            {
-                after = after.LeftNode;
-            }
-            else if (employee.Salary > after.EmployeeInfo.Salary)
-            {
-                after = after.RightNode;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        Node node = new Node(employee);
-        if (Root == null)
-            Root = node;
-        else
+            System.Console.WriteLine("Скачивание файла закончилось");
+        };
+        var task = imageDownloader.DownloadAsync();
+        var isRun = true;
+        while (isRun)
         {
-            if (employee.Salary < before.EmployeeInfo.Salary)
-                before.LeftNode = node;
-            if (employee.Salary > before.EmployeeInfo.Salary)
-                before.RightNode = node;
-        }
-
-        return true;
-    }
-
-    public EmployeeInfo? Find(Func<EmployeeInfo, bool> filter)
-    {
-        return SymmetricTraversal().FirstOrDefault(filter);
-    }
-
-    public IEnumerable<EmployeeInfo> SymmetricTraversal()
-    {
-        var stack = new Stack<Node>();
-        var node = Root;
-
-        while (stack.Count > 0 || node is not null)
-        {
-            if (node is not null)
+            System.Console.WriteLine("Нажмите клавишу А для выхода или любую другую клавишу для проверки статуса скачивания");
+            var key = Console.ReadKey();
+            if(key.KeyChar == 'А')
             {
-                stack.Push(node);
-                node = node.LeftNode;
+                isRun = false;
+                continue;
             }
-            else
-            {
-                node = stack.Pop();
-                yield return node.EmployeeInfo;
-                node = node.RightNode;
-            }
+
+            var isCompleted = task.IsCompleted;
+            System.Console.WriteLine();
+            System.Console.WriteLine("Файл {0}", task.IsCompleted ? "загружен" : "не загружен");
         }
     }
 }
 
-internal class Node
+internal class ImageDownloader
 {
-    public Node? LeftNode { get; set; }
-    public Node? RightNode { get; set; }
-    public EmployeeInfo EmployeeInfo { get; set; }
+    public delegate void DownloadEventHandler();
+    public event DownloadEventHandler ImageStarted;
+    public event DownloadEventHandler ImageCompleted;
 
-    public Node(EmployeeInfo root)
+    public async Task DownloadAsync()
     {
-        EmployeeInfo = root;
-    }
-}
-
-internal class EmployeeInfo
-{
-    public string Name { get; }
-    public decimal Salary { get; }
-
-    public EmployeeInfo(string name, decimal salary)
-    {
-        Name = name;
-        Salary = salary;
+        ImageStarted();
+        string uri = "https://effigis.com/wp-content/uploads/2015/02/Iunctus_SPOT5_5m_8bit_RGB_DRA_torngat_mountains_national_park_8bits_1.jpg";
+        string fileName = "bigimage.jpg";
+        var webClient = new WebClient();
+        System.Console.WriteLine("Качаю \"{0}\" из \"{1}\" .......\n\n", fileName, uri);
+        await webClient.DownloadFileTaskAsync(uri, fileName);
+        Console.WriteLine("Успешно скачал \"{0}\" из \"{1}\"", fileName, uri);
+        ImageCompleted();
     }
 }
