@@ -45,7 +45,7 @@ internal class Program
 
         var salary = decimal.Parse(find);
 
-        var employee = binaryTree.Find(x => x.Salary == salary);
+        var employee = binaryTree.Find(salary);
         if (employee is null)
             System.Console.WriteLine("Такой сотрудник не найден");
         else
@@ -93,9 +93,29 @@ internal class BinaryTree
         return true;
     }
 
-    public EmployeeInfo? Find(Func<EmployeeInfo, bool> filter)
+    public EmployeeInfo? Find(decimal salary)
     {
-        return SymmetricTraversal().FirstOrDefault(filter);
+        var node = Root;
+        if(node is null) return null;        
+
+        while(node is not null)
+        {
+            if(node.EmployeeInfo.Salary == salary)
+                return node.EmployeeInfo;
+            if(node.LeftNode is not null && node.EmployeeInfo.Salary > salary)
+            {
+                node = node.LeftNode;
+                continue;
+            }
+            if(node.RightNode is not null && node.EmployeeInfo.Salary < salary)
+            {
+                node = node.RightNode;
+                continue;
+            }
+            return null;
+        }
+
+        return null;
     }
 
     public IEnumerable<EmployeeInfo> SymmetricTraversal()
