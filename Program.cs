@@ -6,49 +6,33 @@ internal class Program
 {
     private static async Task Main(string[] args)
     {
-        var imageDownloader = new ImageDownloader();
-        imageDownloader.ImageStarted += () =>
-        {
-            System.Console.WriteLine("Скачивание файла началось");
-        };
-        imageDownloader.ImageCompleted += () =>
-        {
-            System.Console.WriteLine("Скачивание файла закончилось");
-        };
-        var task = imageDownloader.DownloadAsync();
-        var isRun = true;
-        while (isRun)
-        {
-            System.Console.WriteLine("Нажмите клавишу А для выхода или любую другую клавишу для проверки статуса скачивания");
-            var key = Console.ReadKey();
-            if(key.KeyChar == 'А')
-            {
-                isRun = false;
-                continue;
-            }
+        var currentDirectory = Environment.CurrentDirectory;
+        
+        #region 1
+        var path1 = @"\Otus\TestDir1";
+        var directoryInfo1 = new DirectoryInfo($"{currentDirectory}{path1}");
+        directoryInfo1.Create();
 
-            var isCompleted = task.IsCompleted;
-            System.Console.WriteLine();
-            System.Console.WriteLine("Файл {0}", task.IsCompleted ? "загружен" : "не загружен");
-        }
-    }
-}
+        var path2 = @"\Otus\TestDir2";
+        var directoryInfo2 = new DirectoryInfo($"{currentDirectory}{path2}");
+        directoryInfo2.Create();
+        #endregion
 
-internal class ImageDownloader
-{
-    public delegate void DownloadEventHandler();
-    public event DownloadEventHandler ImageStarted;
-    public event DownloadEventHandler ImageCompleted;
+        #region 2
+        var fileName1 = "file1.txt";
+        var fileName2 = "file2.txt";
+        File.Create($"{directoryInfo1.FullName}\\{fileName1}");
+        File.Create($"{directoryInfo1.FullName}\\{fileName2}");
 
-    public async Task DownloadAsync()
-    {
-        ImageStarted();
-        string uri = "https://effigis.com/wp-content/uploads/2015/02/Iunctus_SPOT5_5m_8bit_RGB_DRA_torngat_mountains_national_park_8bits_1.jpg";
-        string fileName = "bigimage.jpg";
-        var webClient = new WebClient();
-        System.Console.WriteLine("Качаю \"{0}\" из \"{1}\" .......\n\n", fileName, uri);
-        await webClient.DownloadFileTaskAsync(uri, fileName);
-        Console.WriteLine("Успешно скачал \"{0}\" из \"{1}\"", fileName, uri);
-        ImageCompleted();
+        var fileName3 = "file3.txt";
+        var fileName4 = "file4.txt";
+        File.Create($"{directoryInfo2.FullName}\\{fileName3}");
+        File.Create($"{directoryInfo2.FullName}\\{fileName4}");
+        #endregion
+
+        #region 3
+        var fileStream1 = File.OpenWrite($"{directoryInfo1.FullName}\\{fileName1}");
+        fileStream1.BeginWrite();
+        #endregion
     }
 }
