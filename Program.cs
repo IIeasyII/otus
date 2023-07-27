@@ -1,101 +1,190 @@
-﻿using System.Diagnostics;
-using System.Linq;
-using System.Net;
-using System.Text;
-
-internal class Program
+﻿internal class Program
 {
     private static async Task Main(string[] args)
     {
-        var currentDirectory = Environment.CurrentDirectory;
+        var dictionary = new OtusDictionary(3);
+        dictionary.Add(4, "Hello");
+        dictionary.Add(5, "Otus");
+        dictionary.Add(10, "Dictionary");
+        dictionary.Add(11, "homework");
 
-        #region 1
-        var path1 = @"\Otus\TestDir1";
-        var directoryInfo1 = new DirectoryInfo($"{currentDirectory}{path1}");
-        directoryInfo1.Create();
+        var haveHello = dictionary.TryGetValue(4, out var result1);
+        var haveOtus = dictionary.TryGetValue(5, out var result2);
+        var haveDict = dictionary.TryGetValue(10, out var result3);
+        var haveHomework = dictionary.TryGetValue(11, out var result4);
 
-        var path2 = @"\Otus\TestDir2";
-        var directoryInfo2 = new DirectoryInfo($"{currentDirectory}{path2}");
-        directoryInfo2.Create();
-        #endregion
+        var isEmpty = dictionary.TryGetValue(15, out var result5);
 
-        #region 2
-        var fileName1 = "file1.txt";
-        var fileName2 = "file2.txt";
-        var fs1 = File.Create($"{directoryInfo1.FullName}\\{fileName1}");
-        fs1.Close();
-        var fs2 = File.Create($"{directoryInfo1.FullName}\\{fileName2}");
-        fs2.Close();
+        var hello = dictionary[4];
+        var otus = dictionary[5];
+        var dict = dictionary[10];
+        var homework = dictionary[11];
 
-        var fileName3 = "file3.txt";
-        var fileName4 = "file4.txt";
-        var fs3 = File.Create($"{directoryInfo2.FullName}\\{fileName3}");
-        fs3.Close();
-        File.Create($"{directoryInfo2.FullName}\\{fileName4}");
-        #endregion
+        var empty = dictionary[15];
 
-        #region 3
-        var files = new[]
+        var newValue = dictionary[100] = "new value";
+    }
+}
+
+internal class OtusDictionary
+{
+    private struct Entry
+    {
+        public Entry(int key, string value)
         {
-                $"{directoryInfo1.FullName}\\{fileName1}",
-                $"{directoryInfo1.FullName}\\{fileName2}",
-                $"{directoryInfo2.FullName}\\{fileName3}",
-                $"{directoryInfo2.FullName}\\{fileName4}",
-            };
-        try
+            Key = key;
+            Value = value;
+        }
+
+        public int HashCode { get; set; }
+        public int Next { get; set; }
+        public int Key { get; set; }
+        public string Value { get; set; }
+    }
+
+    private int[] _buckets;
+    private Entry[] _entries;
+
+    private int _defaultCapacity = 32;
+    private int _freeCount;
+    private int _freeList;
+    private int _count;
+    private readonly IEqualityComparer<int> _comparer;
+
+    public OtusDictionary() : this(32, null) { }
+
+    public OtusDictionary(int capacity) : this(capacity, null) { }
+
+    public OtusDictionary(IEqualityComparer<int> comparer) : this(32, comparer) { }
+
+    public OtusDictionary(int capacity, IEqualityComparer<int>? comparer)
+    {
+        if (capacity < 0) throw new ArgumentOutOfRangeException();
+        if (capacity > 0) Initialize(capacity);
+        _comparer = comparer ?? EqualityComparer<int>.Default;
+    }
+
+    public void Add(int key, string value)
+    {
+        int hashCode = key & 0x7FFFFFFF;
+        int targetBucket = hashCode % _buckets.Length;
+
+        for (int i = _buckets[targetBucket]; i >= 0; i = _entries[i].Next)
         {
-            foreach (var file in files)
+            if (_entries[i].HashCode == hashCode && _comparer.Equals(_entries[i].Key, key))
             {
-                using (FileStream fs = File.OpenWrite(file))
+                _entries[i].Value = value;
+                return;
+            }
+        }
+
+        int index;
+        if (_freeCount > 0)
+        {
+            index = _freeList;
+            _freeList = _entries[index].Next;
+            _freeCount--;
+        }
+        else
+        {
+            if (_count == _entries.Length)
+            {
+                Resize(_buckets.Length * 2, false);
+                targetBucket = hashCode % _buckets.Length;
+            }
+            index = _count;
+            _count++;
+        }
+
+        _entries[index].HashCode = hashCode;
+        _entries[index].Next = _buckets[targetBucket];
+        _entries[index].Key = key;
+        _entries[index].Value = value;
+        _buckets[targetBucket] = index;
+    }
+
+    public bool TryGetValue(int key, out string? value)
+    {
+        int i = FindEntry(key);
+        if (i >= 0)
+        {
+            value = _entries[i].Value;
+            return true;
+        }
+        value = default(string);
+        return false;
+    }
+
+    private int FindEntry(int key)
+    {
+        if (_buckets != null)
+        {
+            int hashCode = key;
+            for (int i = _buckets[hashCode % _buckets.Length]; i >= 0; i = _entries[i].Next)
+            {
+                if (_entries[i].HashCode == hashCode && _comparer.Equals(_entries[i].Key, key))
+                    return i;
+            }
+        }
+        return -1;
+    }
+
+    private void Resize(int newSize, bool forceNewHashCodes)
+    {
+        int[] newBuckets = new int[newSize];
+        for (int i = 0; i < newBuckets.Length; i++)
+        {
+            newBuckets[i] = -1;
+        }
+
+        Entry[] newEntries = new Entry[newSize];
+        Array.Copy(_entries, 0, newEntries, 0, _count);
+        if (forceNewHashCodes)
+        {
+            for (int i = 0; i < _count; i++)
+            {
+                if (newEntries[i].HashCode != -1)
                 {
-                    Byte[] info = System.Text.Encoding.UTF8.GetBytes(file);
-                    fs.Write(info, 0, info.Length);
+                    newEntries[i].HashCode = (_comparer.GetHashCode(newEntries[i].Key) & 0x7FFFFFFF);
                 }
             }
         }
-        catch (IOException ex)
+        for (int i = 0; i < _count; i++)
         {
-            System.Console.WriteLine(ex.ToString());
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            System.Console.WriteLine(ex.ToString());
-        }
-        #endregion
-
-        #region 4
-        foreach (var file in files)
-        {
-            try
+            if (newEntries[i].HashCode >= 0)
             {
-                var content = new[] { DateTime.Now.ToString() };
-                await File.AppendAllLinesAsync(file, content);
-            }
-            catch (Exception ex)
-            {
-                System.Console.WriteLine(ex.ToString());
+                int bucket = newEntries[i].HashCode % newSize;
+                newEntries[i].Next = newBuckets[bucket];
+                newBuckets[bucket] = i;
             }
         }
-        #endregion
+        _buckets = newBuckets;
+        _entries = newEntries;
+    }
 
-        #region 5
-        foreach (var file in files)
+    public string? this[int key]
+    {
+        get
         {
-            try
-            {
-                using (FileStream fs = File.OpenRead(file))
-                {
-                    byte[] b = new byte[1024];
-                    UTF8Encoding temp = new UTF8Encoding(true);
-
-                    while (fs.Read(b, 0, b.Length) > 0)
-                    {
-                        Console.WriteLine(temp.GetString(b));
-                    }
-                }
-            }
-            catch { }
+            int i = FindEntry(key);
+            if (i >= 0)
+                return _entries[i].Value;
+            return default(string);
         }
-        #endregion
+        set
+        {
+            if (value is null) throw new NullReferenceException();
+            Add(key, value);
+        }
+    }
+    private void Initialize(int capacity)
+    {
+        _buckets = new int[capacity];
+        for (int i = 0; i < _buckets.Length; i++)
+        {
+            _buckets[i] = -1;
+        }
+        _entries = new Entry[capacity];
+        _freeList = -1;
     }
 }
