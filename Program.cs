@@ -1,190 +1,100 @@
-﻿internal class Program
+﻿using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+
+internal class Program
 {
     private static async Task Main(string[] args)
     {
-        var dictionary = new OtusDictionary(3);
-        dictionary.Add(4, "Hello");
-        dictionary.Add(5, "Otus");
-        dictionary.Add(10, "Dictionary");
-        dictionary.Add(11, "homework");
+        var shop = new Shop();
+        shop.Add(new ShopItem(1, "hello"));
 
-        var haveHello = dictionary.TryGetValue(4, out var result1);
-        var haveOtus = dictionary.TryGetValue(5, out var result2);
-        var haveDict = dictionary.TryGetValue(10, out var result3);
-        var haveHomework = dictionary.TryGetValue(11, out var result4);
+        var customer = new Customer();
+        customer.Subscribe(shop);
 
-        var isEmpty = dictionary.TryGetValue(15, out var result5);
-
-        var hello = dictionary[4];
-        var otus = dictionary[5];
-        var dict = dictionary[10];
-        var homework = dictionary[11];
-
-        var empty = dictionary[15];
-
-        var newValue = dictionary[100] = "new value";
+        ConsoleKey key;
+        var countShopItems = 0;
+        while((key = Console.ReadKey().Key) is not ConsoleKey.X)
+        {
+            if(key is ConsoleKey.A)
+            {
+                var content = $"Товар от {DateTime.Now}";
+                var item = new ShopItem(countShopItems, content);
+                shop.Add(item);
+                countShopItems++;
+            }
+            if(key is ConsoleKey.D)
+            {
+                System.Console.WriteLine("Какой товар удалить?");
+                var id = Convert.ToInt64(Console.ReadLine());                
+                shop.Remove(id);
+            }
+        }
     }
 }
 
-internal class OtusDictionary
+internal class ShopItem
 {
-    private struct Entry
-    {
-        public Entry(int key, string value)
-        {
-            Key = key;
-            Value = value;
-        }
+    public long Id { get; set; }
+    public string Name { get; set; }
 
-        public int HashCode { get; set; }
-        public int Next { get; set; }
-        public int Key { get; set; }
-        public string Value { get; set; }
+    public ShopItem(long id, string name)
+    {
+        Id = id;
+        Name = name;
     }
 
-    private int[] _buckets;
-    private Entry[] _entries;
+    public override string ToString() => $"id={Id}, name={Name}";
+}
 
-    private int _defaultCapacity = 32;
-    private int _freeCount;
-    private int _freeList;
-    private int _count;
-    private readonly IEqualityComparer<int> _comparer;
+internal class Shop
+{
+    private ObservableCollection<ShopItem> _items { get; set; } = new();
 
-    public OtusDictionary() : this(32, null) { }
-
-    public OtusDictionary(int capacity) : this(capacity, null) { }
-
-    public OtusDictionary(IEqualityComparer<int> comparer) : this(32, comparer) { }
-
-    public OtusDictionary(int capacity, IEqualityComparer<int>? comparer)
+    public void Subscribe(NotifyCollectionChangedEventHandler handler)
     {
-        if (capacity < 0) throw new ArgumentOutOfRangeException();
-        if (capacity > 0) Initialize(capacity);
-        _comparer = comparer ?? EqualityComparer<int>.Default;
+        _items.CollectionChanged += handler;
     }
 
-    public void Add(int key, string value)
+    public void Add(ShopItem item)
     {
-        int hashCode = key & 0x7FFFFFFF;
-        int targetBucket = hashCode % _buckets.Length;
-
-        for (int i = _buckets[targetBucket]; i >= 0; i = _entries[i].Next)
-        {
-            if (_entries[i].HashCode == hashCode && _comparer.Equals(_entries[i].Key, key))
-            {
-                _entries[i].Value = value;
-                return;
-            }
-        }
-
-        int index;
-        if (_freeCount > 0)
-        {
-            index = _freeList;
-            _freeList = _entries[index].Next;
-            _freeCount--;
-        }
-        else
-        {
-            if (_count == _entries.Length)
-            {
-                Resize(_buckets.Length * 2, false);
-                targetBucket = hashCode % _buckets.Length;
-            }
-            index = _count;
-            _count++;
-        }
-
-        _entries[index].HashCode = hashCode;
-        _entries[index].Next = _buckets[targetBucket];
-        _entries[index].Key = key;
-        _entries[index].Value = value;
-        _buckets[targetBucket] = index;
+        _items.Add(item);
     }
 
-    public bool TryGetValue(int key, out string? value)
+    public void Remove(long id)
     {
-        int i = FindEntry(key);
-        if (i >= 0)
-        {
-            value = _entries[i].Value;
-            return true;
-        }
-        value = default(string);
-        return false;
+        var item = _items.FirstOrDefault(x => x.Id == id);
+        if(item is null) return;
+
+        _items.Remove(item);
     }
 
-    private int FindEntry(int key)
+}
+
+internal class Customer
+{
+    public void Subscribe(Shop shop)
     {
-        if (_buckets != null)
-        {
-            int hashCode = key;
-            for (int i = _buckets[hashCode % _buckets.Length]; i >= 0; i = _entries[i].Next)
-            {
-                if (_entries[i].HashCode == hashCode && _comparer.Equals(_entries[i].Key, key))
-                    return i;
-            }
-        }
-        return -1;
+        shop.Subscribe(OnItemChanged);
     }
 
-    private void Resize(int newSize, bool forceNewHashCodes)
+    public void OnItemChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        int[] newBuckets = new int[newSize];
-        for (int i = 0; i < newBuckets.Length; i++)
+        switch (e.Action)
         {
-            newBuckets[i] = -1;
+            case NotifyCollectionChangedAction.Add:
+                if (e.NewItems?[0] is ShopItem newItem)
+                    System.Console.WriteLine($"{e.Action} item {newItem}");
+                break;
+            case NotifyCollectionChangedAction.Remove:
+                if (e.OldItems?[0] is ShopItem oldItem)
+                    Console.WriteLine($"{e.Action} item {oldItem}");
+                break;
+            case NotifyCollectionChangedAction.Replace: // если замена
+                if ((e.NewItems?[0] is ShopItem replacingItem) &&
+                    (e.OldItems?[0] is ShopItem replacedItem))
+                    Console.WriteLine($"{e.Action} item {replacedItem} replace on {replacingItem}");
+                break;
         }
-
-        Entry[] newEntries = new Entry[newSize];
-        Array.Copy(_entries, 0, newEntries, 0, _count);
-        if (forceNewHashCodes)
-        {
-            for (int i = 0; i < _count; i++)
-            {
-                if (newEntries[i].HashCode != -1)
-                {
-                    newEntries[i].HashCode = (_comparer.GetHashCode(newEntries[i].Key) & 0x7FFFFFFF);
-                }
-            }
-        }
-        for (int i = 0; i < _count; i++)
-        {
-            if (newEntries[i].HashCode >= 0)
-            {
-                int bucket = newEntries[i].HashCode % newSize;
-                newEntries[i].Next = newBuckets[bucket];
-                newBuckets[bucket] = i;
-            }
-        }
-        _buckets = newBuckets;
-        _entries = newEntries;
-    }
-
-    public string? this[int key]
-    {
-        get
-        {
-            int i = FindEntry(key);
-            if (i >= 0)
-                return _entries[i].Value;
-            return default(string);
-        }
-        set
-        {
-            if (value is null) throw new NullReferenceException();
-            Add(key, value);
-        }
-    }
-    private void Initialize(int capacity)
-    {
-        _buckets = new int[capacity];
-        for (int i = 0; i < _buckets.Length; i++)
-        {
-            _buckets[i] = -1;
-        }
-        _entries = new Entry[capacity];
-        _freeList = -1;
+        
     }
 }
