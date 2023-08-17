@@ -1,100 +1,136 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Collections.Concurrent;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 
 internal class Program
 {
     private static async Task Main(string[] args)
     {
-        var shop = new Shop();
-        shop.Add(new ShopItem(1, "hello"));
+        var librarian = new Librarian();
+        var menu = new Menu(librarian);
 
-        var customer = new Customer();
-        customer.Subscribe(shop);
-
-        ConsoleKey key;
-        var countShopItems = 0;
-        while((key = Console.ReadKey().Key) is not ConsoleKey.X)
+        var isRun = true;
+        while (isRun)
         {
-            if(key is ConsoleKey.A)
+            menu.Show();
+
+            var readline = Console.ReadLine();
+
+            if (!int.TryParse(readline, out int id)) continue;
+
+            var command = (EMenuCommand)id;
+
+            switch (command)
             {
-                var content = $"Товар от {DateTime.Now}";
-                var item = new ShopItem(countShopItems, content);
-                shop.Add(item);
-                countShopItems++;
+                case EMenuCommand.Add:
+                    {
+                        System.Console.WriteLine("Введите название книги");
+                        var book = Console.ReadLine();
+                        if (string.IsNullOrWhiteSpace(book)) continue;
+
+                        menu.AddBook(book);
+                        continue;
+                    }
+                case EMenuCommand.Status:
+                    {
+                        menu.GetStatus();
+                        continue;
+                    }
+                case EMenuCommand.Exit:
+                    {
+                        isRun = false;
+                        break;
+                    }
             }
-            if(key is ConsoleKey.D)
+        }
+
+    }
+}
+
+internal class Librarian
+{
+    public Librarian()
+    {
+        Read();
+    }
+
+    private ConcurrentDictionary<string, int> _dictionary { get; } = new();
+
+    public void AddBook(string name)
+    {
+        var isContains = _dictionary.ContainsKey(name);
+        if (isContains) return;
+
+        _dictionary.TryAdd(name, 0);
+    }
+
+    public void GetStatus()
+    {
+        foreach (var item in _dictionary)
+        {
+            var book = item.Key;
+            var status = item.Value;
+            System.Console.WriteLine($"{book} - {status}");
+        }
+    }
+
+    private void Read()
+    {
+        Task.Run(async () =>
+        {
+            while (true)
             {
-                System.Console.WriteLine("Какой товар удалить?");
-                var id = Convert.ToInt64(Console.ReadLine());                
-                shop.Remove(id);
+                foreach (var item in _dictionary)
+                {
+                    var book = item.Key;
+                    var status = item.Value;
+
+                    if (status > 99)
+                    {
+                        _dictionary.Remove(book, out _);
+                        continue;
+                    }
+
+                    _dictionary[book] += 1;
+
+                }
+                await Task.Delay(200);
             }
+        });
+    }
+}
+
+internal class Menu
+{
+    private readonly Librarian _librarian;
+
+    public Menu(Librarian librarian)
+    {
+        _librarian = librarian;
+    }
+
+    public void AddBook(string name)
+    {
+        _librarian.AddBook(name);
+    }
+
+    public void GetStatus()
+    {
+        _librarian.GetStatus();
+    }
+
+    public void Show()
+    {
+        foreach (EMenuCommand item in Enum.GetValues(typeof(EMenuCommand)))
+        {
+            System.Console.WriteLine($"{(int)item}. {item}");
         }
     }
 }
 
-internal class ShopItem
+internal enum EMenuCommand
 {
-    public long Id { get; set; }
-    public string Name { get; set; }
-
-    public ShopItem(long id, string name)
-    {
-        Id = id;
-        Name = name;
-    }
-
-    public override string ToString() => $"id={Id}, name={Name}";
-}
-
-internal class Shop
-{
-    private ObservableCollection<ShopItem> _items { get; set; } = new();
-
-    public void Subscribe(NotifyCollectionChangedEventHandler handler)
-    {
-        _items.CollectionChanged += handler;
-    }
-
-    public void Add(ShopItem item)
-    {
-        _items.Add(item);
-    }
-
-    public void Remove(long id)
-    {
-        var item = _items.FirstOrDefault(x => x.Id == id);
-        if(item is null) return;
-
-        _items.Remove(item);
-    }
-
-}
-
-internal class Customer
-{
-    public void Subscribe(Shop shop)
-    {
-        shop.Subscribe(OnItemChanged);
-    }
-
-    public void OnItemChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        switch (e.Action)
-        {
-            case NotifyCollectionChangedAction.Add:
-                if (e.NewItems?[0] is ShopItem newItem)
-                    System.Console.WriteLine($"{e.Action} item {newItem}");
-                break;
-            case NotifyCollectionChangedAction.Remove:
-                if (e.OldItems?[0] is ShopItem oldItem)
-                    Console.WriteLine($"{e.Action} item {oldItem}");
-                break;
-            case NotifyCollectionChangedAction.Replace: // если замена
-                if ((e.NewItems?[0] is ShopItem replacingItem) &&
-                    (e.OldItems?[0] is ShopItem replacedItem))
-                    Console.WriteLine($"{e.Action} item {replacedItem} replace on {replacingItem}");
-                break;
-        }
-        
-    }
+    Add = 1,
+    Status = 2,
+    Exit = 3
 }
