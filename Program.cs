@@ -2,108 +2,63 @@
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel.DataAnnotations;
 
 internal class Program
 {
     private static async Task Main(string[] args)
     {
-        IPart part1 = new Part1();
-        IPart part2 = new Part2();
-        IPart part3 = new Part3();
-        IPart part4 = new Part4();
-        IPart part5 = new Part5();
-        IPart part6 = new Part6();
-        IPart part7 = new Part7();
-        IPart part8 = new Part8();
-        IPart part9 = new Part9();
+        var list = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+        var top = list.Top(111);
 
-        var empty = ImmutableList.CreateBuilder<string>();
-        part1.AddPart(empty.ToImmutable());
-        part2.AddPart(part1.Poem);
-        part3.AddPart(part2.Poem);
-        part4.AddPart(part3.Poem);
-        part5.AddPart(part4.Poem);
-        part6.AddPart(part5.Poem);
-        part7.AddPart(part6.Poem);
-        part8.AddPart(part7.Poem);
-        part9.AddPart(part8.Poem);
+        var persons = new List<Person>
+        {
+            new Person {Name = "Person 1", Age = 12},
+            new Person {Name = "Person 2", Age = 42},
+            new Person {Name = "Person 3", Age = 32},
+            new Person {Name = "Person 4", Age = 13},
+            new Person {Name = "Person 5", Age = 17},
+            new Person {Name = "Person 6", Age = 10},
+        };
 
-        System.Console.WriteLine(String.Join(" ", part1.Poem));
-        System.Console.WriteLine("===================================================================");        
-        System.Console.WriteLine(String.Join("\n", part2.Poem));
-        System.Console.WriteLine("===================================================================");        
-        System.Console.WriteLine(String.Join("\n", part3.Poem));
-        System.Console.WriteLine("===================================================================");        
-        System.Console.WriteLine(String.Join("\n", part4.Poem));
-        System.Console.WriteLine("===================================================================");        
-        System.Console.WriteLine(String.Join("\n", part5.Poem));
-        System.Console.WriteLine("===================================================================");        
-        System.Console.WriteLine(String.Join("\n", part6.Poem));
-        System.Console.WriteLine("===================================================================");        
-        System.Console.WriteLine(String.Join("\n", part7.Poem));
-        System.Console.WriteLine("===================================================================");        
-        System.Console.WriteLine(String.Join("\n", part8.Poem));
-        System.Console.WriteLine("===================================================================");        
-        System.Console.WriteLine(String.Join("\n", part9.Poem));
+        var items = persons.Top(30, person => person.Age);
     }
 }
 
-internal interface IPart
+internal class Person
 {
-    public void AddPart(ImmutableList<string> collection)
+    public string Name { get; set; }
+    public int Age { get; set; }
+}
+
+internal static class IEnumerableExtension
+{
+    public static IEnumerable<T> Top<T>(this IEnumerable<T> enumerable, int percent)
     {
-        Poem = collection.Add(SelfPart);
+        Requires.Range(percent, (x) => x >= 1 && x <= 100);
+
+        var count = (int)Math.Ceiling((double)enumerable.Count() * percent / 100);
+        var items = enumerable.TakeLast(count).Reverse();
+        return items;
     }
 
-    ImmutableList<string> Poem { get; set; }
+    public static IEnumerable<TSource> Top<TSource, TKey>(this IEnumerable<TSource> enumerable, int percent, Func<TSource, TKey> keySelector)
+    {
+        Requires.Range(percent, (x) => x >= 1 && x <= 100);
 
-    string SelfPart { get; }
+        var count = (int)Math.Ceiling((double)enumerable.Count() * percent / 100);
+        var items = enumerable.OrderByDescending<TSource, TKey>(keySelector).Take(count);
+        return items;
+    }
 }
 
-internal class Part1 : IPart
+internal static class Requires
 {
-    public ImmutableList<string> Poem { get; set; }
-    public string SelfPart => "Вот дом, Который построил Джек.";
-}
-internal class Part2 : IPart
-{
-    public ImmutableList<string> Poem { get; set; }
-
-    public string SelfPart => "А это пшеница, Которая в темном чулане хранится В доме, Который построил Джек.";
-}
-internal class Part3 : IPart
-{
-    public ImmutableList<string> Poem { get; set; }
-
-    public string SelfPart => "А это веселая птица-синица, Которая часто ворует пшеницу, Которая в темном чулане хранится В доме, Который построил Джек.";
-}
-internal class Part4 : IPart
-{
-    public ImmutableList<string> Poem { get; set; }
-    public string SelfPart => "Вот кот, Который пугает и ловит синицу, Которая часто ворует пшеницу, Которая в темном чулане хранится В доме, Который построил Джек.";
-}
-internal class Part5 : IPart
-{
-    public ImmutableList<string> Poem { get; set; }
-    public string SelfPart => "Вот пес без хвоста, Который за шиворот треплет кота, Который пугает и ловит синицу, Которая часто ворует пшеницу, Которая в темном чулане хранится В доме, Который построил Джек.";
-}
-internal class Part6 : IPart
-{
-    public ImmutableList<string> Poem { get; set; }
-    public string SelfPart => "А это корова безрогая, Лягнувшая старого пса без хвоста, Который за шиворот треплет кота, Который пугает и ловит синицу, Которая часто ворует пшеницу, Которая в темном чулане хранится В доме, Который построил Джек.";
-}
-internal class Part7 : IPart
-{
-    public ImmutableList<string> Poem { get; set; }
-    public string SelfPart => "А это старушка, седая и строгая, Которая доит корову безрогую, Лягнувшую старого пса без хвоста, Который за шиворот треплет кота, Который пугает и ловит синицу, Которая часто ворует пшеницу, Которая в темном чулане хранится В доме, Который построил Джек.";
-}
-internal class Part8 : IPart
-{
-    public ImmutableList<string> Poem { get; set; }
-    public string SelfPart => "А это ленивый и толстый пастух, Который бранится с коровницей строгою, Которая доит корову безрогую, Лягнувшую старого пса без хвоста, Который за шиворот треплет кота, Который пугает и ловит синицу, Которая часто ворует пшеницу, Которая в темном чулане хранится В доме, Который построил Джек.";
-}
-internal class Part9 : IPart
-{
-    public ImmutableList<string> Poem { get; set; }
-    public string SelfPart => "Вот два петуха, Которые будят того пастуха, Который бранится с коровницей строгою, Которая доит корову безрогую, Лягнувшую старого пса без хвоста, Который за шиворот треплет кота, Который пугает и ловит синицу, Которая часто ворует пшеницу, Которая в темном чулане хранится В доме, Который построил Джек.";
+    public static void Range(int value, Func<int, bool> condition)
+    {
+        if (!condition(value))
+        {
+            throw new ArgumentException();
+        }
+    }
 }
