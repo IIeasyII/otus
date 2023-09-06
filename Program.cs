@@ -3,62 +3,57 @@ using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel.DataAnnotations;
+using Otus;
 
 internal class Program
 {
     private static async Task Main(string[] args)
     {
-        var list = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-        var top = list.Top(111);
 
-        var persons = new List<Person>
+        var connectionString = "Host=localhost;Database=Shop;Username=postgres;password=easy";
+        var shopRepository = new ShopRepository(connectionString);
+        var firstNames = shopRepository.GetCustomersByFirstName("Павел");
+        var lastNames = shopRepository.GetCustomersByLastName("Хомякова");
+        var ages = shopRepository.GetCustomersByAge(20);
+        var info = shopRepository.GetShopInfo(1, 30);
+        System.Console.WriteLine($@"|CustomerId|FirstName|LastName|ProductId|ProductQuantity|ProductPrice|");
+        foreach (var item in info)
         {
-            new Person {Name = "Person 1", Age = 12},
-            new Person {Name = "Person 2", Age = 42},
-            new Person {Name = "Person 3", Age = 32},
-            new Person {Name = "Person 4", Age = 13},
-            new Person {Name = "Person 5", Age = 17},
-            new Person {Name = "Person 6", Age = 10},
-        };
-
-        var items = persons.Top(30, person => person.Age);
-    }
-}
-
-internal class Person
-{
-    public string Name { get; set; }
-    public int Age { get; set; }
-}
-
-internal static class IEnumerableExtension
-{
-    public static IEnumerable<T> Top<T>(this IEnumerable<T> enumerable, int percent)
-    {
-        Requires.Range(percent, (x) => x >= 1 && x <= 100);
-
-        var count = (int)Math.Ceiling((double)enumerable.Count() * percent / 100);
-        var items = enumerable.TakeLast(count).Reverse();
-        return items;
-    }
-
-    public static IEnumerable<TSource> Top<TSource, TKey>(this IEnumerable<TSource> enumerable, int percent, Func<TSource, TKey> keySelector)
-    {
-        Requires.Range(percent, (x) => x >= 1 && x <= 100);
-
-        var count = (int)Math.Ceiling((double)enumerable.Count() * percent / 100);
-        var items = enumerable.OrderByDescending<TSource, TKey>(keySelector).Take(count);
-        return items;
-    }
-}
-
-internal static class Requires
-{
-    public static void Range(int value, Func<int, bool> condition)
-    {
-        if (!condition(value))
-        {
-            throw new ArgumentException();
+            for (int i = 0; i < item.Products.Count; i++)
+            {
+                System.Console.WriteLine($@"|{item.Id}|{item.FirstName}|{item.LastName}|{item.Products[i].Id}|{item.Orders[i].Quantity}|{item.Products[i].Price}|");
+            }
         }
     }
+}
+
+internal class Customer
+{
+    public int Id { get; set; }
+    public string FirstName { get; set; } = null!;
+    public string LastName { get; set; } = null!;
+    public int Age { get; set; }
+    public List<Product> Products { get; set; } = new List<Product>();
+    public List<Order> Orders { get; set; } = new List<Order>();
+}
+
+internal class Order
+{
+    public int Id { get; set; }
+    public int CustomersId { get; set; }
+    public int ProductId { get; set; }
+    public int Quantity { get; set; }
+
+    public Customer Customer { get; set; } = null!;
+    public Product Product { get; set; } = null!;
+}
+
+internal class Product
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = null!;
+    public string? Description { get; set; }
+    public int StockQuantity { get; set; }
+    public int? Price { get; set; }
+    public List<Customer> Customers { get; set; } = null!;
 }
