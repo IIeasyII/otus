@@ -1,5 +1,3 @@
-using YandexDisk.Client;
-
 namespace TelegramBot.Console.YandexDisk.Services;
 
 public interface IYandexDiskService
