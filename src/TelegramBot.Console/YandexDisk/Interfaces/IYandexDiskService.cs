@@ -11,4 +11,9 @@ public interface IYandexDiskService
     /// Create folder if it is not exist
     ///</summary>
     Task<string?> CreateFolderAsync(string folderName, CancellationToken cancellationToken = default(CancellationToken));
+
+    ///<summary>
+    /// Create default folder if it is not exist
+    ///</summary>
+    Task<string?> CreateDefaultFolderAsync(CancellationToken cancellationToken = default(CancellationToken));
 }
